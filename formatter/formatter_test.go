@@ -67,3 +67,20 @@ func TestFormatterInterface(t *testing.T) {
 	var _ Formatter = (*JSONFormatter)(nil)
 	_ = reflect.TypeOf((*Formatter)(nil)).Elem()
 }
+
+func TestNewFromPath_JSON(t *testing.T) {
+	f, err := NewFromPath("results/results.json")
+	if err != nil {
+		t.Fatalf("NewFromPath() error = %v", err)
+	}
+	if f.Extension() != "json" {
+		t.Errorf("Extension() = %q, want %q", f.Extension(), "json")
+	}
+}
+
+func TestNewFromPath_Unsupported(t *testing.T) {
+	_, err := NewFromPath("output.yaml")
+	if err == nil {
+		t.Error("NewFromPath() expected error for unsupported format, got nil")
+	}
+}

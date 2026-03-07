@@ -42,8 +42,6 @@ This will:
 |-----------|--------|
 | `.json`   | ✅ Supported |
 
-Additional formats can be added by implementing the `Formatter` interface in the `formatter` package.
-
 ## Release management
 
 Releases use [kotaoue/major-tag-floater](https://github.com/kotaoue/major-tag-floater) to keep the floating major-version tag (e.g. `v1`) pointing at the latest release.

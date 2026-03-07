@@ -1,0 +1,60 @@
+package parser
+
+import (
+	"testing"
+
+	"github.com/kotaoue/pr-checklist-collector/formatter"
+)
+
+func TestParseChecks(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []formatter.Check
+	}{
+		{
+			name:  "three items",
+			input: "dog\ncat\nbird",
+			want: []formatter.Check{
+				{Name: "dog", Done: false},
+				{Name: "cat", Done: false},
+				{Name: "bird", Done: false},
+			},
+		},
+		{
+			name:  "trims whitespace",
+			input: "  dog  \n  cat  ",
+			want: []formatter.Check{
+				{Name: "dog", Done: false},
+				{Name: "cat", Done: false},
+			},
+		},
+		{
+			name:  "skips blank lines",
+			input: "dog\n\ncat\n\n",
+			want: []formatter.Check{
+				{Name: "dog", Done: false},
+				{Name: "cat", Done: false},
+			},
+		},
+		{
+			name:  "empty input",
+			input: "",
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseChecks(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("ParseChecks() len = %d, want %d", len(got), len(tt.want))
+			}
+			for i, c := range got {
+				if c != tt.want[i] {
+					t.Errorf("ParseChecks()[%d] = %+v, want %+v", i, c, tt.want[i])
+				}
+			}
+		})
+	}
+}
