@@ -1,0 +1,32 @@
+name: 'PR Checklist Collector'
+description: 'Creates a pull request with a markdown checklist and saves the initial state to a file.'
+author: 'kotaoue'
+
+branding:
+  icon: 'check-square'
+  color: 'green'
+
+inputs:
+  checks:
+    description: 'Newline-separated list of checklist items (e.g. "dog\ncat\nbird").'
+    required: true
+  output_file:
+    description: 'Repository-relative path for the output file (e.g. results/results.json).'
+    required: true
+  assignee:
+    description: 'GitHub username to assign the pull request to. Leave empty to skip assignment.'
+    required: false
+    default: ''
+  github_token:
+    description: 'GitHub token used to create the branch, commit, and pull request.'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    INPUT_CHECKS: ${{ inputs.checks }}
+    INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
+    INPUT_ASSIGNEE: ${{ inputs.assignee }}
+    GITHUB_TOKEN: ${{ inputs.github_token }}
