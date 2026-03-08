@@ -1,0 +1,17 @@
+name: Update major version tag
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: "!github.event.release.prerelease"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: kotaoue/major-tag-floater@v1
