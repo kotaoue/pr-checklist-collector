@@ -14,6 +14,18 @@ inputs:
     description: 'Name of the JSON object key that holds the checklist map (e.g. "exercises"). Defaults to "checks".'
     required: false
     default: 'checks'
+  pr_title_pattern:
+    description: 'Regular expression matched against the merged PR title. When set, the action skips PRs whose title does not match (exits successfully with no file written).'
+    required: false
+    default: ''
+  commit_user_name:
+    description: 'Git committer name recorded on the result commit.'
+    required: false
+    default: 'github-actions[bot]'
+  commit_user_email:
+    description: 'Git committer email recorded on the result commit.'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
   github_token:
     description: 'GitHub token used to commit the result file.'
     required: false
@@ -25,4 +37,7 @@ runs:
   env:
     INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
     INPUT_CHECKS_KEY: ${{ inputs.checks_key }}
+    INPUT_PR_TITLE_PATTERN: ${{ inputs.pr_title_pattern }}
+    INPUT_COMMIT_USER_NAME: ${{ inputs.commit_user_name }}
+    INPUT_COMMIT_USER_EMAIL: ${{ inputs.commit_user_email }}
     GITHUB_TOKEN: ${{ inputs.github_token }}

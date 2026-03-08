@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -12,6 +13,10 @@ import (
 
 func main() {
 	cfg, err := configFromEnv()
+	if errors.Is(err, errSkip) {
+		fmt.Fprintln(os.Stdout, "info:", err)
+		os.Exit(0)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -38,6 +43,10 @@ func run(cfg *config) error {
 		return fmt.Errorf("format checks: %w", err)
 	}
 
-	return commit.File(ctx, client, cfg.owner, cfg.repo, cfg.outputFile, cfg.baseBranch, "Save checklist results", content)
+	opts := commit.Options{
+		CommitterName:  cfg.commitUserName,
+		CommitterEmail: cfg.commitUserEmail,
+	}
+	return commit.File(ctx, client, cfg.owner, cfg.repo, cfg.outputFile, cfg.baseBranch, "Save checklist results", opts, content)
 }
 

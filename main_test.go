@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -12,9 +13,17 @@ import (
 // and returns its path.
 func writeEventFile(t *testing.T, body, baseRef string) string {
 	t.Helper()
+	return writeEventFileWithTitle(t, body, baseRef, "")
+}
+
+// writeEventFileWithTitle creates a temporary GitHub event JSON file with a pull_request
+// payload including a title, and returns its path.
+func writeEventFileWithTitle(t *testing.T, body, baseRef, title string) string {
+	t.Helper()
 	payload, err := json.Marshal(map[string]interface{}{
 		"pull_request": map[string]interface{}{
-			"body": body,
+			"title": title,
+			"body":  body,
 			"base": map[string]interface{}{
 				"ref": baseRef,
 			},
@@ -153,6 +162,96 @@ func TestConfigFromEnv_DateFormattedOutputFile(t *testing.T) {
 	}
 	if strings.ContainsAny(cfg.outputFile, "{}") {
 		t.Errorf("outputFile still contains marker braces: %q", cfg.outputFile)
+	}
+}
+
+func TestConfigFromEnv_CommitUserDefaults(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] dog", "main")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_COMMIT_USER_NAME", "")
+	t.Setenv("INPUT_COMMIT_USER_EMAIL", "")
+
+	cfg, err := configFromEnv()
+	if err != nil {
+		t.Fatalf("configFromEnv() unexpected error: %v", err)
+	}
+	if cfg.commitUserName != "github-actions[bot]" {
+		t.Errorf("commitUserName = %q, want default %q", cfg.commitUserName, "github-actions[bot]")
+	}
+	if cfg.commitUserEmail != "github-actions[bot]@users.noreply.github.com" {
+		t.Errorf("commitUserEmail = %q, want default %q", cfg.commitUserEmail, "github-actions[bot]@users.noreply.github.com")
+	}
+}
+
+func TestConfigFromEnv_CommitUserCustom(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] dog", "main")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_COMMIT_USER_NAME", "mybot")
+	t.Setenv("INPUT_COMMIT_USER_EMAIL", "mybot@example.com")
+
+	cfg, err := configFromEnv()
+	if err != nil {
+		t.Fatalf("configFromEnv() unexpected error: %v", err)
+	}
+	if cfg.commitUserName != "mybot" {
+		t.Errorf("commitUserName = %q, want %q", cfg.commitUserName, "mybot")
+	}
+	if cfg.commitUserEmail != "mybot@example.com" {
+		t.Errorf("commitUserEmail = %q, want %q", cfg.commitUserEmail, "mybot@example.com")
+	}
+}
+
+func TestConfigFromEnv_PRTitlePattern_Match(t *testing.T) {
+	eventFile := writeEventFileWithTitle(t, "- [x] dog", "main", "2026-03-08 workout")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_PR_TITLE_PATTERN", `\d{4}-\d{2}-\d{2}`)
+
+	cfg, err := configFromEnv()
+	if err != nil {
+		t.Fatalf("configFromEnv() unexpected error (title matches): %v", err)
+	}
+	if cfg.prTitlePattern == nil {
+		t.Error("prTitlePattern should not be nil when INPUT_PR_TITLE_PATTERN is set")
+	}
+}
+
+func TestConfigFromEnv_PRTitlePattern_NoMatch(t *testing.T) {
+	eventFile := writeEventFileWithTitle(t, "- [x] dog", "main", "chore: update deps")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_PR_TITLE_PATTERN", `\d{4}-\d{2}-\d{2}`)
+
+	_, err := configFromEnv()
+	if !errors.Is(err, errSkip) {
+		t.Errorf("configFromEnv() expected errSkip for non-matching title, got %v", err)
+	}
+}
+
+func TestConfigFromEnv_PRTitlePattern_Invalid(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] dog", "main")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_PR_TITLE_PATTERN", `[invalid`)
+
+	_, err := configFromEnv()
+	if err == nil {
+		t.Error("configFromEnv() expected error for invalid regexp pattern")
+	}
+	if errors.Is(err, errSkip) {
+		t.Error("configFromEnv() should not return errSkip for invalid pattern")
 	}
 }
 

@@ -85,13 +85,30 @@ This produces:
 }
 ```
 
+To filter by PR title and customize the commit identity (matching the [FitnessStreak workflow](https://github.com/kotaoue/FitnessStreak/blob/main/.github/workflows/save-results.yml)):
+
+```yaml
+- uses: kotaoue/pr-checklist-collector@v1
+  with:
+    output_file: results/{yyyy-mm-dd}.json
+    checks_key: exercises
+    pr_title_pattern: '\d{4}-\d{2}-\d{2}'   # only process PRs whose title contains a date
+    commit_user_name: 'github-actions[bot]'
+    commit_user_email: 'github-actions[bot]@users.noreply.github.com'
+```
+
+When `pr_title_pattern` is set and the merged PR's title does not match, the action exits successfully without writing any file.
+
 ## Inputs
 
-| Name           | Required | Default        | Description |
-|----------------|----------|----------------|-------------|
-| `output_file`  | yes      | —              | Repository-relative path for the output file. Wrap date tokens in `{}` for date-based filenames (e.g. `results/{yyyy-mm-dd}.json`). |
-| `checks_key`   | no       | `checks`       | Name of the JSON object key that holds the checklist map (e.g. `exercises`). |
-| `github_token` | no       | `github.token` | Token used to commit the result file. |
+| Name                 | Required | Default                                          | Description |
+|----------------------|----------|--------------------------------------------------|-------------|
+| `output_file`        | yes      | —                                                | Repository-relative path for the output file. Wrap date tokens in `{}` for date-based filenames (e.g. `results/{yyyy-mm-dd}.json`). |
+| `checks_key`         | no       | `checks`                                         | Name of the JSON object key that holds the checklist map (e.g. `exercises`). |
+| `pr_title_pattern`   | no       | *(accept all)*                                   | Regular expression matched against the merged PR title. When set, PRs whose title does not match are silently skipped (action exits with success, no file written). |
+| `commit_user_name`   | no       | `github-actions[bot]`                            | Git committer name recorded on the result commit. |
+| `commit_user_email`  | no       | `github-actions[bot]@users.noreply.github.com`   | Git committer email recorded on the result commit. |
+| `github_token`       | no       | `github.token`                                   | Token used to commit the result file. |
 
 ## Supported formats
 

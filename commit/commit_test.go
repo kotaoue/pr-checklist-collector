@@ -46,7 +46,7 @@ func TestFile_Create(t *testing.T) {
 	})
 
 	client := newTestClient(t, mux)
-	err := commit.File(context.Background(), client, "owner", "repo", "out.json", "main", "Save results", []byte(`[]`))
+	err := commit.File(context.Background(), client, "owner", "repo", "out.json", "main", "Save results", commit.Options{}, []byte(`[]`))
 	if err != nil {
 		t.Errorf("File() unexpected error: %v", err)
 	}
@@ -78,8 +78,47 @@ func TestFile_Update(t *testing.T) {
 	})
 
 	client := newTestClient(t, mux)
-	err := commit.File(context.Background(), client, "owner", "repo", "out.json", "main", "Save results", []byte(`[]`))
+	err := commit.File(context.Background(), client, "owner", "repo", "out.json", "main", "Save results", commit.Options{}, []byte(`[]`))
 	if err != nil {
 		t.Errorf("File() unexpected error: %v", err)
+	}
+}
+
+func TestFile_WithCommitter(t *testing.T) {
+	mux := http.NewServeMux()
+
+	var gotName, gotEmail string
+	mux.HandleFunc("/api/v3/repos/owner/repo/contents/out.json", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.Method == http.MethodPut {
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if c, ok := body["committer"].(map[string]interface{}); ok {
+				gotName, _ = c["name"].(string)
+				gotEmail, _ = c["email"].(string)
+			}
+			w.WriteHeader(http.StatusCreated)
+			resp := map[string]interface{}{
+				"content": map[string]interface{}{"name": "out.json"},
+				"commit":  map[string]interface{}{"sha": "abc123"},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+		}
+	})
+
+	client := newTestClient(t, mux)
+	opts := commit.Options{CommitterName: "bot", CommitterEmail: "bot@example.com"}
+	err := commit.File(context.Background(), client, "owner", "repo", "out.json", "main", "Save results", opts, []byte(`[]`))
+	if err != nil {
+		t.Errorf("File() unexpected error: %v", err)
+	}
+	if gotName != "bot" {
+		t.Errorf("committer name = %q, want %q", gotName, "bot")
+	}
+	if gotEmail != "bot@example.com" {
+		t.Errorf("committer email = %q, want %q", gotEmail, "bot@example.com")
 	}
 }
