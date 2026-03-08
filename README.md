@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
 
 jobs:
   collect-checklist:
@@ -23,7 +22,10 @@ jobs:
       - uses: kotaoue/pr-checklist-collector@v1
         with:
           output_file: results/{yyyy-mm-dd}.json
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          checks_key: exercises            # optional, defaults to "checks"
+          pr_title_pattern: '\d{4}-\d{2}-\d{2}'  # optional, skip PRs whose title doesn't match
+          commit_user_name: 'github-actions[bot]'           # optional
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'  # optional
 ```
 
 The action reads the merged PR body, parses all GitHub-flavored markdown checkboxes (`- [x]` / `- [ ]`), and commits the result as a JSON file to the base branch.
@@ -39,7 +41,7 @@ The action reads the merged PR body, parses all GitHub-flavored markdown checkbo
 ```json
 {
   "date": "2026-03-08",
-  "checks": {
+  "exercises": {
     "dog": true,
     "cat": false,
     "bird": true
@@ -47,13 +49,7 @@ The action reads the merged PR body, parses all GitHub-flavored markdown checkbo
 }
 ```
 
-To save files with a date-based name (e.g. `results/2026-03-08.json`), wrap a date pattern in `{}`:
-
-```yaml
-output_file: results/{yyyy-mm-dd}.json
-```
-
-Supported date tokens inside `{}`:
+`output_file` supports date tokens wrapped in `{}`:
 
 | Token  | Example output | Description   |
 |--------|----------------|---------------|
@@ -64,40 +60,6 @@ Supported date tokens inside `{}`:
 
 Tokens can be combined freely: `{yyyymmdd}` → `20260308`, `{yyyy/mm/dd}` → `2026/03/08`, etc.
 Paths without `{}` (e.g. `results/results.json`) are used as-is.
-
-To reproduce a custom key name (e.g. `"exercises"` like [FitnessStreak](https://github.com/kotaoue/FitnessStreak/blob/main/results/2026-03-06.json)), set `checks_key`:
-
-```yaml
-- uses: kotaoue/pr-checklist-collector@v1
-  with:
-    output_file: results/{yyyy-mm-dd}.json
-    checks_key: exercises
-```
-
-This produces:
-```json
-{
-  "date": "2026-03-08",
-  "exercises": {
-    "ラジオ体操": false,
-    "ストレッチ": false
-  }
-}
-```
-
-To filter by PR title and customize the commit identity (matching the [FitnessStreak workflow](https://github.com/kotaoue/FitnessStreak/blob/main/.github/workflows/save-results.yml)):
-
-```yaml
-- uses: kotaoue/pr-checklist-collector@v1
-  with:
-    output_file: results/{yyyy-mm-dd}.json
-    checks_key: exercises
-    pr_title_pattern: '\d{4}-\d{2}-\d{2}'   # only process PRs whose title contains a date
-    commit_user_name: 'github-actions[bot]'
-    commit_user_email: 'github-actions[bot]@users.noreply.github.com'
-```
-
-When `pr_title_pattern` is set and the merged PR's title does not match, the action exits successfully without writing any file.
 
 ## Inputs
 
