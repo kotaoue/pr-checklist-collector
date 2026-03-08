@@ -11,7 +11,7 @@ inputs:
     description: 'Newline-separated list of checklist items (e.g. "dog\ncat\nbird").'
     required: true
   output_file:
-    description: 'Repository-relative path for the output file (e.g. results/results.json).'
+    description: 'Repository-relative path for the output file. Use {yyyy-mm-dd} (or other date tokens) to embed the current date (e.g. "results/{yyyy-mm-dd}.json" → "results/2026-03-08.json").'
     required: true
   assignee:
     description: 'GitHub username to assign the pull request to. Leave empty to skip assignment.'

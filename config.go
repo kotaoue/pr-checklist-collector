@@ -3,11 +3,20 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/kotaoue/pr-checklist-collector/formatter"
 	"github.com/kotaoue/pr-checklist-collector/parser"
 )
+
+// dateTokenRe matches user-friendly date tokens (longest alternative first so
+// that yyyy is matched before yy at each position).
+var dateTokenRe = regexp.MustCompile(`yyyy|yy|mm|dd`)
+
+// dateMarkerRe matches {…} placeholders in an output_file path.
+var dateMarkerRe = regexp.MustCompile(`\{([^}]*)\}`)
 
 // config holds all runtime parameters derived from environment variables.
 type config struct {
@@ -32,7 +41,7 @@ func configFromEnv() (*config, error) {
 		return nil, fmt.Errorf("GITHUB_REPOSITORY must be in owner/repo format, got %q", rawRepo)
 	}
 
-	outputFile := os.Getenv("INPUT_OUTPUT_FILE")
+	outputFile := expandDateMarkers(os.Getenv("INPUT_OUTPUT_FILE"))
 	if outputFile == "" {
 		return nil, fmt.Errorf("INPUT_OUTPUT_FILE is required")
 	}
@@ -50,4 +59,41 @@ func configFromEnv() (*config, error) {
 		outputFile: outputFile,
 		assignee:   os.Getenv("INPUT_ASSIGNEE"),
 	}, nil
+}
+
+// toGoTimeLayout converts a user-friendly date pattern to Go's reference-time
+// layout string. Supported tokens (case-insensitive):
+//
+//	yyyy → 2006  (4-digit year)
+//	yy   → 06    (2-digit year)
+//	mm   → 01    (2-digit month)
+//	dd   → 02    (2-digit day)
+//
+// Go reference-time tokens (2006, 01, 02) are also accepted as-is.
+func toGoTimeLayout(pattern string) string {
+	return dateTokenRe.ReplaceAllStringFunc(strings.ToLower(pattern), func(token string) string {
+		switch token {
+		case "yyyy":
+			return "2006"
+		case "yy":
+			return "06"
+		case "mm":
+			return "01"
+		case "dd":
+			return "02"
+		}
+		return token
+	})
+}
+
+// expandDateMarkers replaces {pattern} placeholders in path with the current
+// date formatted according to pattern. Pattern may use yyyy/yy/mm/dd tokens or
+// Go reference-time tokens (2006, 01, 02). Parts of path outside {} are left
+// unchanged, so a literal "2006-01-02" in the path stays as-is.
+func expandDateMarkers(path string) string {
+	now := time.Now()
+	return dateMarkerRe.ReplaceAllStringFunc(path, func(match string) string {
+		inner := match[1 : len(match)-1]
+		return now.Format(toGoTimeLayout(inner))
+	})
 }
