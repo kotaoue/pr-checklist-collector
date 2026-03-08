@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -14,44 +15,55 @@ func TestJSONFormatter_Extension(t *testing.T) {
 
 func TestJSONFormatter_Format(t *testing.T) {
 	checks := []Check{
-		{Name: "dog", Done: false},
+		{Name: "dog", Done: true},
 		{Name: "cat", Done: false},
-		{Name: "bird", Done: false},
 	}
 
 	f := &JSONFormatter{}
-	data, err := f.Format(checks)
+	data, err := f.Format("2026-03-08", checks)
 	if err != nil {
 		t.Fatalf("Format() error = %v", err)
 	}
 
-	want := `[
-  {
-    "name": "dog",
-    "done": false
-  },
-  {
-    "name": "cat",
-    "done": false
-  },
-  {
-    "name": "bird",
-    "done": false
-  }
-]`
-	if got := string(data); got != want {
-		t.Errorf("Format() =\n%s\nwant:\n%s", got, want)
+	// Unmarshal and compare to avoid map-ordering sensitivity.
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got["date"] != "2026-03-08" {
+		t.Errorf("date = %v, want %q", got["date"], "2026-03-08")
+	}
+	checksMap, ok := got["checks"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("checks is not a map: %T", got["checks"])
+	}
+	if checksMap["dog"] != true {
+		t.Errorf("checks[dog] = %v, want true", checksMap["dog"])
+	}
+	if checksMap["cat"] != false {
+		t.Errorf("checks[cat] = %v, want false", checksMap["cat"])
 	}
 }
 
 func TestJSONFormatter_Format_Empty(t *testing.T) {
 	f := &JSONFormatter{}
-	data, err := f.Format([]Check{})
+	data, err := f.Format("2026-03-08", []Check{})
 	if err != nil {
 		t.Fatalf("Format() error = %v", err)
 	}
-	if string(data) != "[]" {
-		t.Errorf("Format() = %q, want %q", string(data), "[]")
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got["date"] != "2026-03-08" {
+		t.Errorf("date = %v, want %q", got["date"], "2026-03-08")
+	}
+	checksMap, ok := got["checks"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("checks is not a map: %T", got["checks"])
+	}
+	if len(checksMap) != 0 {
+		t.Errorf("checks map len = %d, want 0", len(checksMap))
 	}
 }
 

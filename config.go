@@ -24,6 +24,7 @@ type config struct {
 	owner      string
 	repo       string
 	token      string
+	date       string
 	checks     []formatter.Check
 	outputFile string
 	baseBranch string
@@ -61,6 +62,7 @@ func configFromEnv() (*config, error) {
 		owner:      parts[0],
 		repo:       parts[1],
 		token:      token,
+		date:       time.Now().Format("2006-01-02"),
 		checks:     checks,
 		outputFile: outputFile,
 		baseBranch: baseBranch,

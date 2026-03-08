@@ -37,20 +37,14 @@ The action reads the merged PR body, parses all GitHub-flavored markdown checkbo
 
 **Produces** `results/2026-03-08.json`:
 ```json
-[
-  {
-    "name": "dog",
-    "done": true
-  },
-  {
-    "name": "cat",
-    "done": false
-  },
-  {
-    "name": "bird",
-    "done": true
+{
+  "date": "2026-03-08",
+  "checks": {
+    "dog": true,
+    "cat": false,
+    "bird": true
   }
-]
+}
 ```
 
 To save files with a date-based name (e.g. `results/2026-03-08.json`), wrap a date pattern in `{}`:

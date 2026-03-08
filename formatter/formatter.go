@@ -10,7 +10,8 @@ type Check struct {
 // Implementing this interface allows future support for additional formats (e.g. YAML, CSV).
 type Formatter interface {
 	// Format serializes the given checks into bytes in the formatter's target format.
-	Format(checks []Check) ([]byte, error)
+	// date is the ISO-8601 date string (e.g. "2026-03-08") to embed in the output.
+	Format(date string, checks []Check) ([]byte, error)
 	// Extension returns the file extension for this format (e.g. "json").
 	Extension() string
 }
