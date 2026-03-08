@@ -11,7 +11,7 @@ inputs:
     description: 'Newline-separated list of checklist items (e.g. "dog\ncat\nbird").'
     required: true
   output_file:
-    description: 'Repository-relative path for the output file (e.g. results/results.json).'
+    description: 'Repository-relative path for the output file. Supports Go time layout codes for date-based names (e.g. "results/2006-01-02.json" produces "results/2026-03-08.json").'
     required: true
   assignee:
     description: 'GitHub username to assign the pull request to. Leave empty to skip assignment.'

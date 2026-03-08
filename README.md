@@ -16,9 +16,21 @@ A GitHub Action that creates a pull request containing a markdown checklist and 
     github_token: ${{ secrets.GITHUB_TOKEN }}  # optional, defaults to github.token
 ```
 
+To save files with a date-based name (e.g. `results/2026-03-08.json`), use Go time layout codes:
+
+```yaml
+- uses: kotaoue/pr-checklist-collector@v1
+  with:
+    checks: |
+      dog
+      cat
+      bird
+    output_file: results/2006-01-02.json
+```
+
 This will:
 1. Create a new branch `checklist/<timestamp>`.
-2. Commit `results/results.json` with the initial checklist state (all items unchecked).
+2. Commit the output file at the resolved `output_file` path with the initial checklist state (all items unchecked).
 3. Open a pull request whose body contains:
    ```
    - [ ] dog
@@ -32,7 +44,7 @@ This will:
 | Name           | Required | Default              | Description |
 |----------------|----------|----------------------|-------------|
 | `checks`       | yes      | —                    | Newline-separated list of checklist items. |
-| `output_file`  | yes      | —                    | Repository-relative path for the output file (e.g. `results/results.json`). |
+| `output_file`  | yes      | —                    | Repository-relative path for the output file. Supports Go time layout codes for date-based filenames (e.g. `results/2006-01-02.json`). |
 | `assignee`     | no       | `""` (no assignment) | GitHub username to assign the pull request to. |
 | `github_token` | no       | `github.token`       | Token used to create branches, commits, and pull requests. |
 

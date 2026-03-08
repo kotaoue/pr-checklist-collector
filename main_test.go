@@ -1,7 +1,9 @@
 package main
 
 import (
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestConfigFromEnv_MissingToken(t *testing.T) {
@@ -67,6 +69,30 @@ func TestConfigFromEnv_Valid(t *testing.T) {
 	}
 	if len(cfg.checks) != 3 {
 		t.Errorf("checks len = %d, want 3", len(cfg.checks))
+	}
+}
+
+func TestConfigFromEnv_DateFormattedOutputFile(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/2006-01-02.json")
+	t.Setenv("INPUT_CHECKS", "dog")
+	t.Setenv("INPUT_ASSIGNEE", "")
+
+	before := time.Now()
+	cfg, err := configFromEnv()
+	after := time.Now()
+	if err != nil {
+		t.Fatalf("configFromEnv() unexpected error: %v", err)
+	}
+
+	wantBefore := "results/" + before.Format("2006-01-02") + ".json"
+	wantAfter := "results/" + after.Format("2006-01-02") + ".json"
+	if cfg.outputFile != wantBefore && cfg.outputFile != wantAfter {
+		t.Errorf("outputFile = %q, want %q (or %q near midnight)", cfg.outputFile, wantBefore, wantAfter)
+	}
+	if strings.Contains(cfg.outputFile, "2006-01-02") {
+		t.Errorf("outputFile still contains raw layout codes: %q", cfg.outputFile)
 	}
 }
 

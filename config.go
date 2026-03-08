@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kotaoue/pr-checklist-collector/formatter"
 	"github.com/kotaoue/pr-checklist-collector/parser"
@@ -32,7 +33,7 @@ func configFromEnv() (*config, error) {
 		return nil, fmt.Errorf("GITHUB_REPOSITORY must be in owner/repo format, got %q", rawRepo)
 	}
 
-	outputFile := os.Getenv("INPUT_OUTPUT_FILE")
+	outputFile := time.Now().Format(os.Getenv("INPUT_OUTPUT_FILE"))
 	if outputFile == "" {
 		return nil, fmt.Errorf("INPUT_OUTPUT_FILE is required")
 	}
