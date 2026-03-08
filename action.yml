@@ -10,6 +10,10 @@ inputs:
   output_file:
     description: 'Repository-relative path for the output file. Use {yyyy-mm-dd} (or other date tokens) to embed the current date (e.g. "results/{yyyy-mm-dd}.json" → "results/2026-03-08.json").'
     required: true
+  checks_key:
+    description: 'Name of the JSON object key that holds the checklist map (e.g. "exercises"). Defaults to "checks".'
+    required: false
+    default: 'checks'
   github_token:
     description: 'GitHub token used to commit the result file.'
     required: false
@@ -20,4 +24,5 @@ runs:
   image: 'Dockerfile'
   env:
     INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
+    INPUT_CHECKS_KEY: ${{ inputs.checks_key }}
     GITHUB_TOKEN: ${{ inputs.github_token }}

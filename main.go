@@ -33,7 +33,7 @@ func run(cfg *config) error {
 		return err
 	}
 
-	content, err := f.Format(cfg.date, cfg.checks)
+	content, err := f.Format(cfg.date, cfg.checksKey, cfg.checks)
 	if err != nil {
 		return fmt.Errorf("format checks: %w", err)
 	}

@@ -11,7 +11,8 @@ type Check struct {
 type Formatter interface {
 	// Format serializes the given checks into bytes in the formatter's target format.
 	// date is the ISO-8601 date string (e.g. "2026-03-08") to embed in the output.
-	Format(date string, checks []Check) ([]byte, error)
+	// checksKey is the name of the object key that holds the checklist map (e.g. "checks").
+	Format(date string, checksKey string, checks []Check) ([]byte, error)
 	// Extension returns the file extension for this format (e.g. "json").
 	Extension() string
 }

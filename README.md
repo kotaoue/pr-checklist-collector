@@ -65,11 +65,32 @@ Supported date tokens inside `{}`:
 Tokens can be combined freely: `{yyyymmdd}` → `20260308`, `{yyyy/mm/dd}` → `2026/03/08`, etc.
 Paths without `{}` (e.g. `results/results.json`) are used as-is.
 
+To reproduce a custom key name (e.g. `"exercises"` like [FitnessStreak](https://github.com/kotaoue/FitnessStreak/blob/main/results/2026-03-06.json)), set `checks_key`:
+
+```yaml
+- uses: kotaoue/pr-checklist-collector@v1
+  with:
+    output_file: results/{yyyy-mm-dd}.json
+    checks_key: exercises
+```
+
+This produces:
+```json
+{
+  "date": "2026-03-08",
+  "exercises": {
+    "ラジオ体操": false,
+    "ストレッチ": false
+  }
+}
+```
+
 ## Inputs
 
 | Name           | Required | Default        | Description |
 |----------------|----------|----------------|-------------|
 | `output_file`  | yes      | —              | Repository-relative path for the output file. Wrap date tokens in `{}` for date-based filenames (e.g. `results/{yyyy-mm-dd}.json`). |
+| `checks_key`   | no       | `checks`       | Name of the JSON object key that holds the checklist map (e.g. `exercises`). |
 | `github_token` | no       | `github.token` | Token used to commit the result file. |
 
 ## Supported formats

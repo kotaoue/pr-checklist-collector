@@ -92,6 +92,7 @@ func TestConfigFromEnv_Valid(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
 	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
 	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_CHECKS_KEY", "")
 
 	cfg, err := configFromEnv()
 	if err != nil {
@@ -108,6 +109,26 @@ func TestConfigFromEnv_Valid(t *testing.T) {
 	}
 	if len(cfg.checks) != 3 {
 		t.Errorf("checks len = %d, want 3", len(cfg.checks))
+	}
+	if cfg.checksKey != "checks" {
+		t.Errorf("checksKey = %q, want %q (default)", cfg.checksKey, "checks")
+	}
+}
+
+func TestConfigFromEnv_CustomChecksKey(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] ラジオ体操\n- [ ] 筋トレ", "main")
+	t.Setenv("GITHUB_TOKEN", "mytoken")
+	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
+	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	t.Setenv("INPUT_CHECKS_KEY", "exercises")
+
+	cfg, err := configFromEnv()
+	if err != nil {
+		t.Fatalf("configFromEnv() unexpected error: %v", err)
+	}
+	if cfg.checksKey != "exercises" {
+		t.Errorf("checksKey = %q, want %q", cfg.checksKey, "exercises")
 	}
 }
 

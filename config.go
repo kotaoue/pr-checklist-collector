@@ -25,6 +25,7 @@ type config struct {
 	repo       string
 	token      string
 	date       string
+	checksKey  string
 	checks     []formatter.Check
 	outputFile string
 	baseBranch string
@@ -58,11 +59,17 @@ func configFromEnv() (*config, error) {
 		return nil, fmt.Errorf("no checklist items found in pull request body")
 	}
 
+	checksKey := os.Getenv("INPUT_CHECKS_KEY")
+	if checksKey == "" {
+		checksKey = "checks"
+	}
+
 	return &config{
 		owner:      parts[0],
 		repo:       parts[1],
 		token:      token,
 		date:       time.Now().Format("2006-01-02"),
+		checksKey:  checksKey,
 		checks:     checks,
 		outputFile: outputFile,
 		baseBranch: baseBranch,
