@@ -1,5 +1,5 @@
 name: 'PR Checklist Collector'
-description: 'When a pull request is merged, collects the checklist state from the PR body and saves it as a file committed to the base branch.'
+description: 'When a PR is merged, collects the checklist state from the PR body and saves it as a file committed to the base branch.'
 author: 'kotaoue'
 
 branding:
