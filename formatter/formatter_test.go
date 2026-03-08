@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -14,44 +15,89 @@ func TestJSONFormatter_Extension(t *testing.T) {
 
 func TestJSONFormatter_Format(t *testing.T) {
 	checks := []Check{
-		{Name: "dog", Done: false},
+		{Name: "dog", Done: true},
 		{Name: "cat", Done: false},
-		{Name: "bird", Done: false},
 	}
 
 	f := &JSONFormatter{}
-	data, err := f.Format(checks)
+	data, err := f.Format("2026-03-08", "checks", checks)
 	if err != nil {
 		t.Fatalf("Format() error = %v", err)
 	}
 
-	want := `[
-  {
-    "name": "dog",
-    "done": false
-  },
-  {
-    "name": "cat",
-    "done": false
-  },
-  {
-    "name": "bird",
-    "done": false
-  }
-]`
-	if got := string(data); got != want {
-		t.Errorf("Format() =\n%s\nwant:\n%s", got, want)
+	// Unmarshal and compare to avoid map-ordering sensitivity.
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got["date"] != "2026-03-08" {
+		t.Errorf("date = %v, want %q", got["date"], "2026-03-08")
+	}
+	checksMap, ok := got["checks"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("checks is not a map: %T", got["checks"])
+	}
+	if checksMap["dog"] != true {
+		t.Errorf("checks[dog] = %v, want true", checksMap["dog"])
+	}
+	if checksMap["cat"] != false {
+		t.Errorf("checks[cat] = %v, want false", checksMap["cat"])
+	}
+}
+
+func TestJSONFormatter_Format_CustomKey(t *testing.T) {
+	checks := []Check{
+		{Name: "ラジオ体操", Done: false},
+		{Name: "筋トレ", Done: true},
+	}
+
+	f := &JSONFormatter{}
+	data, err := f.Format("2026-03-06", "exercises", checks)
+	if err != nil {
+		t.Fatalf("Format() error = %v", err)
+	}
+
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got["date"] != "2026-03-06" {
+		t.Errorf("date = %v, want %q", got["date"], "2026-03-06")
+	}
+	if _, hasChecks := got["checks"]; hasChecks {
+		t.Error("expected no \"checks\" key when checksKey is \"exercises\"")
+	}
+	exMap, ok := got["exercises"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("exercises is not a map: %T", got["exercises"])
+	}
+	if exMap["ラジオ体操"] != false {
+		t.Errorf("exercises[ラジオ体操] = %v, want false", exMap["ラジオ体操"])
+	}
+	if exMap["筋トレ"] != true {
+		t.Errorf("exercises[筋トレ] = %v, want true", exMap["筋トレ"])
 	}
 }
 
 func TestJSONFormatter_Format_Empty(t *testing.T) {
 	f := &JSONFormatter{}
-	data, err := f.Format([]Check{})
+	data, err := f.Format("2026-03-08", "checks", []Check{})
 	if err != nil {
 		t.Fatalf("Format() error = %v", err)
 	}
-	if string(data) != "[]" {
-		t.Errorf("Format() = %q, want %q", string(data), "[]")
+	var got map[string]interface{}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got["date"] != "2026-03-08" {
+		t.Errorf("date = %v, want %q", got["date"], "2026-03-08")
+	}
+	checksMap, ok := got["checks"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("checks is not a map: %T", got["checks"])
+	}
+	if len(checksMap) != 0 {
+		t.Errorf("checks map len = %d, want 0", len(checksMap))
 	}
 }
 

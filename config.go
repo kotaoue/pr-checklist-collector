@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -11,6 +13,10 @@ import (
 	"github.com/kotaoue/pr-checklist-collector/parser"
 )
 
+// errSkip is returned when the action should exit successfully without doing any work
+// (e.g. the PR title does not match the configured pattern).
+var errSkip = errors.New("no matching PR title; skipping")
+
 // dateTokenRe matches user-friendly date tokens (longest alternative first so
 // that yyyy is matched before yy at each position).
 var dateTokenRe = regexp.MustCompile(`yyyy|yy|mm|dd`)
@@ -20,12 +26,17 @@ var dateMarkerRe = regexp.MustCompile(`\{([^}]*)\}`)
 
 // config holds all runtime parameters derived from environment variables.
 type config struct {
-	owner      string
-	repo       string
-	token      string
-	checks     []formatter.Check
-	outputFile string
-	assignee   string
+	owner           string
+	repo            string
+	token           string
+	date            string
+	checksKey       string
+	checks          []formatter.Check
+	outputFile      string
+	baseBranch      string
+	commitUserName  string
+	commitUserEmail string
+	prTitlePattern  *regexp.Regexp // nil means accept all PR titles
 }
 
 // configFromEnv builds a config from environment variables set by the GitHub Actions runner.
@@ -46,19 +57,95 @@ func configFromEnv() (*config, error) {
 		return nil, fmt.Errorf("INPUT_OUTPUT_FILE is required")
 	}
 
-	checks := parser.ParseChecks(os.Getenv("INPUT_CHECKS"))
+	// Compile the optional PR title pattern before reading the event payload so
+	// that a bad pattern is caught early and clearly.
+	var prTitlePattern *regexp.Regexp
+	if raw := os.Getenv("INPUT_PR_TITLE_PATTERN"); raw != "" {
+		var err error
+		prTitlePattern, err = regexp.Compile(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid INPUT_PR_TITLE_PATTERN %q: %w", raw, err)
+		}
+	}
+
+	prBody, baseBranch, prTitle, err := readPREvent()
+	if err != nil {
+		return nil, err
+	}
+
+	// If a title pattern is configured, skip PRs that don't match.
+	if prTitlePattern != nil && !prTitlePattern.MatchString(prTitle) {
+		return nil, fmt.Errorf("%w: title %q does not match %q", errSkip, prTitle, prTitlePattern.String())
+	}
+
+	checks := parser.ParseBody(prBody)
 	if len(checks) == 0 {
-		return nil, fmt.Errorf("INPUT_CHECKS must contain at least one item")
+		return nil, fmt.Errorf("no checklist items found in pull request body")
+	}
+
+	checksKey := os.Getenv("INPUT_CHECKS_KEY")
+	if checksKey == "" {
+		checksKey = "checks"
+	}
+
+	commitUserName := os.Getenv("INPUT_COMMIT_USER_NAME")
+	if commitUserName == "" {
+		commitUserName = "github-actions[bot]"
+	}
+	commitUserEmail := os.Getenv("INPUT_COMMIT_USER_EMAIL")
+	if commitUserEmail == "" {
+		commitUserEmail = "github-actions[bot]@users.noreply.github.com"
 	}
 
 	return &config{
-		owner:      parts[0],
-		repo:       parts[1],
-		token:      token,
-		checks:     checks,
-		outputFile: outputFile,
-		assignee:   os.Getenv("INPUT_ASSIGNEE"),
+		owner:           parts[0],
+		repo:            parts[1],
+		token:           token,
+		date:            time.Now().Format("2006-01-02"),
+		checksKey:       checksKey,
+		checks:          checks,
+		outputFile:      outputFile,
+		baseBranch:      baseBranch,
+		commitUserName:  commitUserName,
+		commitUserEmail: commitUserEmail,
+		prTitlePattern:  prTitlePattern,
 	}, nil
+}
+
+// prEventPayload holds the fields we need from the pull_request event JSON.
+type prEventPayload struct {
+	PullRequest struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+		Base  struct {
+			Ref string `json:"ref"`
+		} `json:"base"`
+	} `json:"pull_request"`
+}
+
+// readPREvent reads the GitHub event payload from GITHUB_EVENT_PATH and returns
+// the pull request body, the base branch ref, and the PR title.
+func readPREvent() (body string, baseBranch string, title string, err error) {
+	eventPath := os.Getenv("GITHUB_EVENT_PATH")
+	if eventPath == "" {
+		return "", "", "", fmt.Errorf("GITHUB_EVENT_PATH is not set")
+	}
+
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("read event file: %w", err)
+	}
+
+	var payload prEventPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", "", "", fmt.Errorf("parse event payload: %w", err)
+	}
+
+	if payload.PullRequest.Base.Ref == "" {
+		return "", "", "", fmt.Errorf("pull_request.base.ref is empty in event payload")
+	}
+
+	return payload.PullRequest.Body, payload.PullRequest.Base.Ref, payload.PullRequest.Title, nil
 }
 
 // toGoTimeLayout converts a user-friendly date pattern to Go's reference-time

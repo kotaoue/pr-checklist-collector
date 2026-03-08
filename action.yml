@@ -1,5 +1,5 @@
 name: 'PR Checklist Collector'
-description: 'Creates a pull request with a markdown checklist and saves the initial state to a file.'
+description: 'When a pull request is merged, collects the checklist state from the PR body and saves it as a file committed to the base branch.'
 author: 'kotaoue'
 
 branding:
@@ -7,18 +7,27 @@ branding:
   color: 'green'
 
 inputs:
-  checks:
-    description: 'Newline-separated list of checklist items (e.g. "dog\ncat\nbird").'
-    required: true
   output_file:
     description: 'Repository-relative path for the output file. Use {yyyy-mm-dd} (or other date tokens) to embed the current date (e.g. "results/{yyyy-mm-dd}.json" → "results/2026-03-08.json").'
     required: true
-  assignee:
-    description: 'GitHub username to assign the pull request to. Leave empty to skip assignment.'
+  checks_key:
+    description: 'Name of the JSON object key that holds the checklist map (e.g. "exercises"). Defaults to "checks".'
+    required: false
+    default: 'checks'
+  pr_title_pattern:
+    description: 'Regular expression matched against the merged PR title. When set, the action skips PRs whose title does not match (exits successfully with no file written).'
     required: false
     default: ''
+  commit_user_name:
+    description: 'Git committer name recorded on the result commit.'
+    required: false
+    default: 'github-actions[bot]'
+  commit_user_email:
+    description: 'Git committer email recorded on the result commit.'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
   github_token:
-    description: 'GitHub token used to create the branch, commit, and pull request.'
+    description: 'GitHub token used to commit the result file.'
     required: false
     default: ${{ github.token }}
 
@@ -26,7 +35,9 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    INPUT_CHECKS: ${{ inputs.checks }}
     INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
-    INPUT_ASSIGNEE: ${{ inputs.assignee }}
+    INPUT_CHECKS_KEY: ${{ inputs.checks_key }}
+    INPUT_PR_TITLE_PATTERN: ${{ inputs.pr_title_pattern }}
+    INPUT_COMMIT_USER_NAME: ${{ inputs.commit_user_name }}
+    INPUT_COMMIT_USER_EMAIL: ${{ inputs.commit_user_email }}
     GITHUB_TOKEN: ${{ inputs.github_token }}
