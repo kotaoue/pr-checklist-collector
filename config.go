@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -25,7 +26,7 @@ type config struct {
 	token      string
 	checks     []formatter.Check
 	outputFile string
-	assignee   string
+	baseBranch string
 }
 
 // configFromEnv builds a config from environment variables set by the GitHub Actions runner.
@@ -46,9 +47,14 @@ func configFromEnv() (*config, error) {
 		return nil, fmt.Errorf("INPUT_OUTPUT_FILE is required")
 	}
 
-	checks := parser.ParseChecks(os.Getenv("INPUT_CHECKS"))
+	prBody, baseBranch, err := readPREvent()
+	if err != nil {
+		return nil, err
+	}
+
+	checks := parser.ParseBody(prBody)
 	if len(checks) == 0 {
-		return nil, fmt.Errorf("INPUT_CHECKS must contain at least one item")
+		return nil, fmt.Errorf("no checklist items found in pull request body")
 	}
 
 	return &config{
@@ -57,8 +63,43 @@ func configFromEnv() (*config, error) {
 		token:      token,
 		checks:     checks,
 		outputFile: outputFile,
-		assignee:   os.Getenv("INPUT_ASSIGNEE"),
+		baseBranch: baseBranch,
 	}, nil
+}
+
+// prEventPayload holds the fields we need from the pull_request event JSON.
+type prEventPayload struct {
+	PullRequest struct {
+		Body string `json:"body"`
+		Base struct {
+			Ref string `json:"ref"`
+		} `json:"base"`
+	} `json:"pull_request"`
+}
+
+// readPREvent reads the GitHub event payload from GITHUB_EVENT_PATH and returns
+// the pull request body and the base branch ref.
+func readPREvent() (body string, baseBranch string, err error) {
+	eventPath := os.Getenv("GITHUB_EVENT_PATH")
+	if eventPath == "" {
+		return "", "", fmt.Errorf("GITHUB_EVENT_PATH is not set")
+	}
+
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read event file: %w", err)
+	}
+
+	var payload prEventPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", "", fmt.Errorf("parse event payload: %w", err)
+	}
+
+	if payload.PullRequest.Base.Ref == "" {
+		return "", "", fmt.Errorf("pull_request.base.ref is empty in event payload")
+	}
+
+	return payload.PullRequest.Body, payload.PullRequest.Base.Ref, nil
 }
 
 // toGoTimeLayout converts a user-friendly date pattern to Go's reference-time

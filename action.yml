@@ -1,5 +1,5 @@
 name: 'PR Checklist Collector'
-description: 'Creates a pull request with a markdown checklist and saves the initial state to a file.'
+description: 'When a pull request is merged, collects the checklist state from the PR body and saves it as a file committed to the base branch.'
 author: 'kotaoue'
 
 branding:
@@ -7,18 +7,11 @@ branding:
   color: 'green'
 
 inputs:
-  checks:
-    description: 'Newline-separated list of checklist items (e.g. "dog\ncat\nbird").'
-    required: true
   output_file:
     description: 'Repository-relative path for the output file. Use {yyyy-mm-dd} (or other date tokens) to embed the current date (e.g. "results/{yyyy-mm-dd}.json" → "results/2026-03-08.json").'
     required: true
-  assignee:
-    description: 'GitHub username to assign the pull request to. Leave empty to skip assignment.'
-    required: false
-    default: ''
   github_token:
-    description: 'GitHub token used to create the branch, commit, and pull request.'
+    description: 'GitHub token used to commit the result file.'
     required: false
     default: ${{ github.token }}
 
@@ -26,7 +19,5 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    INPUT_CHECKS: ${{ inputs.checks }}
     INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
-    INPUT_ASSIGNEE: ${{ inputs.assignee }}
     GITHUB_TOKEN: ${{ inputs.github_token }}

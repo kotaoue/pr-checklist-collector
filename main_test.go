@@ -1,10 +1,39 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
+
+// writeEventFile creates a temporary GitHub event JSON file with a pull_request payload
+// and returns its path.
+func writeEventFile(t *testing.T, body, baseRef string) string {
+	t.Helper()
+	payload, err := json.Marshal(map[string]interface{}{
+		"pull_request": map[string]interface{}{
+			"body": body,
+			"base": map[string]interface{}{
+				"ref": baseRef,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	f, err := os.CreateTemp("", "event-*.json")
+	if err != nil {
+		t.Fatalf("create temp event file: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(f.Name()) })
+	if _, err := f.Write(payload); err != nil {
+		t.Fatalf("write event file: %v", err)
+	}
+	f.Close()
+	return f.Name()
+}
 
 func TestConfigFromEnv_MissingToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
@@ -18,7 +47,6 @@ func TestConfigFromEnv_InvalidRepo(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "token")
 	t.Setenv("GITHUB_REPOSITORY", "invalid-no-slash")
 	t.Setenv("INPUT_OUTPUT_FILE", "out.json")
-	t.Setenv("INPUT_CHECKS", "dog")
 	_, err := configFromEnv()
 	if err == nil {
 		t.Error("configFromEnv() expected error for invalid GITHUB_REPOSITORY")
@@ -29,30 +57,41 @@ func TestConfigFromEnv_MissingOutputFile(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "token")
 	t.Setenv("GITHUB_REPOSITORY", "owner/repo")
 	t.Setenv("INPUT_OUTPUT_FILE", "")
-	t.Setenv("INPUT_CHECKS", "dog")
 	_, err := configFromEnv()
 	if err == nil {
 		t.Error("configFromEnv() expected error for missing OUTPUT_FILE")
 	}
 }
 
-func TestConfigFromEnv_EmptyChecks(t *testing.T) {
+func TestConfigFromEnv_MissingEventPath(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "token")
 	t.Setenv("GITHUB_REPOSITORY", "owner/repo")
 	t.Setenv("INPUT_OUTPUT_FILE", "out.json")
-	t.Setenv("INPUT_CHECKS", "")
+	t.Setenv("GITHUB_EVENT_PATH", "")
 	_, err := configFromEnv()
 	if err == nil {
-		t.Error("configFromEnv() expected error for empty checks")
+		t.Error("configFromEnv() expected error for missing GITHUB_EVENT_PATH")
+	}
+}
+
+func TestConfigFromEnv_EmptyChecklist(t *testing.T) {
+	eventFile := writeEventFile(t, "No checkboxes here.", "main")
+	t.Setenv("GITHUB_TOKEN", "token")
+	t.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	t.Setenv("INPUT_OUTPUT_FILE", "out.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
+	_, err := configFromEnv()
+	if err == nil {
+		t.Error("configFromEnv() expected error for PR body with no checklist items")
 	}
 }
 
 func TestConfigFromEnv_Valid(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] dog\n- [ ] cat\n- [x] bird", "main")
 	t.Setenv("GITHUB_TOKEN", "mytoken")
 	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
 	t.Setenv("INPUT_OUTPUT_FILE", "results/results.json")
-	t.Setenv("INPUT_CHECKS", "dog\ncat\nbird")
-	t.Setenv("INPUT_ASSIGNEE", "kotaoue")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
 
 	cfg, err := configFromEnv()
 	if err != nil {
@@ -64,8 +103,8 @@ func TestConfigFromEnv_Valid(t *testing.T) {
 	if cfg.repo != "myrepo" {
 		t.Errorf("repo = %q, want %q", cfg.repo, "myrepo")
 	}
-	if cfg.assignee != "kotaoue" {
-		t.Errorf("assignee = %q, want %q", cfg.assignee, "kotaoue")
+	if cfg.baseBranch != "main" {
+		t.Errorf("baseBranch = %q, want %q", cfg.baseBranch, "main")
 	}
 	if len(cfg.checks) != 3 {
 		t.Errorf("checks len = %d, want 3", len(cfg.checks))
@@ -73,11 +112,11 @@ func TestConfigFromEnv_Valid(t *testing.T) {
 }
 
 func TestConfigFromEnv_DateFormattedOutputFile(t *testing.T) {
+	eventFile := writeEventFile(t, "- [x] dog", "main")
 	t.Setenv("GITHUB_TOKEN", "mytoken")
 	t.Setenv("GITHUB_REPOSITORY", "alice/myrepo")
 	t.Setenv("INPUT_OUTPUT_FILE", "results/{yyyy-mm-dd}.json")
-	t.Setenv("INPUT_CHECKS", "dog")
-	t.Setenv("INPUT_ASSIGNEE", "")
+	t.Setenv("GITHUB_EVENT_PATH", eventFile)
 
 	before := time.Now()
 	cfg, err := configFromEnv()

@@ -1,31 +1,62 @@
 # pr-checklist-collector
 
-A GitHub Action that creates a pull request containing a markdown checklist and saves the initial checklist state to a file in a configurable format.
+A GitHub Action that, when a pull request is merged, collects the checklist state from the PR body and saves it as a JSON file committed directly to the base branch.
 
 ## Usage
 
+Add this action to a workflow triggered on `pull_request` closed events:
+
 ```yaml
-- uses: kotaoue/pr-checklist-collector@v1
-  with:
-    checks: |
-      dog
-      cat
-      bird
-    output_file: results/results.json
-    assignee: kotaoue          # optional
-    github_token: ${{ secrets.GITHUB_TOKEN }}  # optional, defaults to github.token
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  collect-checklist:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kotaoue/pr-checklist-collector@v1
+        with:
+          output_file: results/{yyyy-mm-dd}.json
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+The action reads the merged PR body, parses all GitHub-flavored markdown checkboxes (`- [x]` / `- [ ]`), and commits the result as a JSON file to the base branch.
+
+**Example PR body:**
+```
+- [x] dog
+- [ ] cat
+- [x] bird
+```
+
+**Produces** `results/2026-03-08.json`:
+```json
+[
+  {
+    "name": "dog",
+    "done": true
+  },
+  {
+    "name": "cat",
+    "done": false
+  },
+  {
+    "name": "bird",
+    "done": true
+  }
+]
 ```
 
 To save files with a date-based name (e.g. `results/2026-03-08.json`), wrap a date pattern in `{}`:
 
 ```yaml
-- uses: kotaoue/pr-checklist-collector@v1
-  with:
-    checks: |
-      dog
-      cat
-      bird
-    output_file: results/{yyyy-mm-dd}.json
+output_file: results/{yyyy-mm-dd}.json
 ```
 
 Supported date tokens inside `{}`:
@@ -40,25 +71,12 @@ Supported date tokens inside `{}`:
 Tokens can be combined freely: `{yyyymmdd}` → `20260308`, `{yyyy/mm/dd}` → `2026/03/08`, etc.
 Paths without `{}` (e.g. `results/results.json`) are used as-is.
 
-This will:
-1. Create a new branch `checklist/<timestamp>`.
-2. Commit the output file at the resolved `output_file` path with the initial checklist state (all items unchecked).
-3. Open a pull request whose body contains:
-   ```
-   - [ ] dog
-   - [ ] cat
-   - [ ] bird
-   ```
-4. Assign the pull request to `kotaoue` (skipped when `assignee` is empty).
-
 ## Inputs
 
-| Name           | Required | Default              | Description |
-|----------------|----------|----------------------|-------------|
-| `checks`       | yes      | —                    | Newline-separated list of checklist items. |
-| `output_file`  | yes      | —                    | Repository-relative path for the output file. Wrap date tokens in `{}` for date-based filenames (e.g. `results/{yyyy-mm-dd}.json`). |
-| `assignee`     | no       | `""` (no assignment) | GitHub username to assign the pull request to. |
-| `github_token` | no       | `github.token`       | Token used to create branches, commits, and pull requests. |
+| Name           | Required | Default        | Description |
+|----------------|----------|----------------|-------------|
+| `output_file`  | yes      | —              | Repository-relative path for the output file. Wrap date tokens in `{}` for date-based filenames (e.g. `results/{yyyy-mm-dd}.json`). |
+| `github_token` | no       | `github.token` | Token used to commit the result file. |
 
 ## Supported formats
 
