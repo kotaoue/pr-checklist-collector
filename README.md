@@ -1,5 +1,10 @@
 # pr-checklist-collector
 
+[![Go](https://github.com/kotaoue/pr-checklist-collector/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/kotaoue/pr-checklist-collector/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/kotaoue/pr-checklist-collector/branch/main/graph/badge.svg)](https://codecov.io/gh/kotaoue/pr-checklist-collector)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kotaoue/pr-checklist-collector)](https://goreportcard.com/report/github.com/kotaoue/pr-checklist-collector)
+[![License](https://img.shields.io/github/license/kotaoue/pr-checklist-collector)](https://github.com/kotaoue/pr-checklist-collector/blob/main/LICENSE)
+
 A GitHub Action that, when a pull request is merged, collects the checklist state from the PR body and saves it as a JSON file committed directly to the base branch.
 
 ## Usage
